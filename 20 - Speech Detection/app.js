@@ -4,7 +4,6 @@ window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogn
 // Create our speech recognition object
 const recognition = new SpeechRecognition();
 recognition.interimResults = true;
-recognition.lang('en-US')
 
 // Create our p element to push sentences into
 let p = document.createElement('p');
@@ -14,8 +13,18 @@ const words = document.querySelector('.words')
 // Append p to the words div
 words.appendChild(p)
 
-// Listen for results on the recognition object
-recognition.addEventListener('result', e => {
+function assistantTerms(query) {
+    const googleRegex = new RegExp(/search google|google|search for/gi)
+    if (query.match(googleRegex)) {
+        let extract = query.match(googleRegex);
+        query = query
+            .replace(extract, '')
+            .trim();
+        window.open(`https://www.google.com/search?q=${query}`, '_blank');
+    }
+}
+
+function handleSpeech(e) {
     // Create an array from the transcript object
     const transcript = Array.from(e.results)
         // Dig deeper in array
@@ -31,13 +40,17 @@ recognition.addEventListener('result', e => {
 
     // Only push the isFinal results into our word div
     if (e.results[0].isFinal) {
+        // Check if any of the terms match our assistant's terms
+        assistantTerms(transcript)
         p = document.createElement('p');
         words.appendChild(p)
-    }
-})
 
+    }
+}
+
+// Listen for results on the recognition object
+recognition.addEventListener('result', handleSpeech);
 // Whenever the recognition event ends - start it again
 recognition.addEventListener('end', recognition.start)
-
 // Initialize listening at the beginning of app
 recognition.start();
