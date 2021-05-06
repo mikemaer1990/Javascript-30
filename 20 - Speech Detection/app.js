@@ -13,14 +13,18 @@ const words = document.querySelector('.words')
 // Append p to the words div
 words.appendChild(p)
 
+
 function assistantTerms(query) {
-    const googleRegex = new RegExp(/search google|google|search for/gi)
+    const googleRegex = new RegExp(/search google|google|search for/gi);
+    const weatherRegex = new RegExp(/weather|whats the weather|temperature|forecast/gi);
     if (query.match(googleRegex)) {
         let extract = query.match(googleRegex);
         query = query
             .replace(extract, '')
             .trim();
         window.open(`https://www.google.com/search?q=${query}`, '_blank');
+    } else if (query.match(weatherRegex)) {
+        getLocationThenWeather();
     }
 }
 
@@ -46,6 +50,105 @@ function handleSpeech(e) {
         words.appendChild(p)
 
     }
+}
+
+const getLocation = async () => {
+    const request = await fetch('https://geolocation-db.com/json/');
+    const data = await request.json();
+    return data.IPv4;
+}
+
+const getWeather = async (location) => {
+    const request = await fetch(`http://api.weatherapi.com/v1/forecast.json?key=87fd74d91a204d6abd943807210605&q=${location}&days=2&aqi=yes&alerts=no`);
+    const data = await request.json();
+    return data
+}
+
+const getLocationThenWeather = async () => {
+    const location = await getLocation();
+    const weather = await getWeather(location)
+    console.log(weather);
+    const weatherObj = {
+        location: weather.location.name,
+        current: {
+            temp: Math.round(weather.current.temp_c),
+            condition: weather.current.condition.text,
+            img: weather.current.condition.icon,
+            air: Math.round(weather.current.air_quality.pm10)
+        },
+        forecast: {
+            today: {
+                date: weather.forecast.forecastday[0].date,
+                high: Math.round(weather.forecast.forecastday[0].day.maxtemp_c),
+                low: Math.round(weather.forecast.forecastday[0].day.mintemp_c),
+                condition: weather.forecast.forecastday[0].day.condition.text,
+                img: weather.forecast.forecastday[0].day.condition.icon,
+                precipitation: weather.forecast.forecastday[0].day.daily_chance_of_rain || weather.forecast.forecastday[0].day.daily_chance_of_snow
+            },
+            tomorrow: {
+                date: weather.forecast.forecastday[1].date,
+                high: Math.round(weather.forecast.forecastday[1].day.maxtemp_c),
+                low: Math.round(weather.forecast.forecastday[1].day.mintemp_c),
+                condition: weather.forecast.forecastday[1].day.condition.text,
+                img: weather.forecast.forecastday[1].day.condition.icon,
+                precipitation: weather.forecast.forecastday[1].day.daily_chance_of_rain || weather.forecast.forecastday[1].day.daily_chance_of_snow
+            }
+        }
+    }
+    console.log(weatherObj)
+    const weatherDivHtml = `
+        <h1 class="weather-title">${weatherObj.location}</h1>
+        <div class="weather-wrapper">
+            <div class="weather">
+                <h4>Current</h4>
+                <p class="current-temp">${weatherObj.current.temp}&deg;C</p>
+                <div class="condition-div">
+                    <figure>
+                        <img class="condition" src="https://${weatherObj.current.img}">
+                    </figure>
+                    <p class="condition-text">${weatherObj.current.condition}</p>
+                </div>
+                <div class="precipitation air">
+                <img class="precipitation-img" src="./mask.png" width="30px" height="30px">
+                    <p class="air-text">PM<sub>10</sub> | <span class="air-rating">${weatherObj.current.air}</span></p>
+                    </div>
+            </div>
+            <div class="weather">
+                <h4>Today</h4>
+                <p class="current-temp">${weatherObj.forecast.today.high}&deg;C | ${weatherObj.forecast.today.low}&deg;C</p>
+                <div class="condition-div">
+                    <figure>
+                        <img class="condition" src="https://${weatherObj.forecast.today.img}">
+                    </figure>
+                    <p class="condition-text">${weatherObj.forecast.today.condition}</p>
+                </div>
+                <div class="precipitation">
+                    <img class="precipitation-img" src="./rain.png" width="30px" height="30px">
+                    <p class="precipitation-text"> | ${weatherObj.forecast.today.precipitation}%</p>
+                </div>
+            </div>
+            <div class="weather">
+                <h4>Tomorrow</h4>
+                <p class="current-temp">${weatherObj.forecast.tomorrow.high}&deg;C | ${weatherObj.forecast.tomorrow.low}&deg;C</p>
+                <div class="condition-div">
+                    <figure>
+                        <img class="condition" src="https://${weatherObj.forecast.tomorrow.img}">
+                    </figure>
+                    <p class="condition-text">${weatherObj.forecast.tomorrow.condition}</p>
+                </div>
+                <div class="precipitation">
+                    <img class="precipitation-img" src="./rain.png" width="30px" height="30px">
+                    <p class="precipitation-text"> | ${weatherObj.forecast.tomorrow.precipitation}%</p>
+                </div>
+            </div>
+        </div>
+    `
+    const weatherDiv = document.createElement('div')
+    weatherDiv.innerHTML = weatherDivHtml
+    document.body.insertBefore(weatherDiv, words.nextSibling)
+    p.innerHTML = `
+        It is currently ${weatherObj.current.temp}&deg;C and ${weatherObj.current.condition} in ${weatherObj.location}. The high for today is ${weatherObj.forecast.today.high}&deg;C, and the low for today is ${weatherObj.forecast.today.low}&deg;C
+    `
 }
 
 // Listen for results on the recognition object
